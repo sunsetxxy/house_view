@@ -26,15 +26,47 @@ SECRET_KEY = "django-insecure-4rv_iam-*+e+0b7_0)m$!4&yhw7qkn$+5(mtg3%xv-lx_2=7#+
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = [
-    '127.0.0.1:8000',
-    'localhost:8080',
-    ]    
-CORS_ALLOW_HEADERS = ('*')
+# 删除或注释掉这部分重复的配置
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_ALL_ORIGINS = [
+#     '127.0.0.1:8000',
+#     'localhost:8080',
+#     ]    
+# CORS_ALLOW_HEADERS = ('*')
+# CORS_ALLOW_METHODS = [
+#     '*',
+# ]
+
+#CORS_ORIGIN_ALLOW_ALL为True, 指定所有域名(ip)都可以访问后端接口, 默认为False
+CORS_ORIGIN_ALLOW_ALL = True
+# 允许的域名(ip)
+# CORS_ORIGIN_WHITELIST = [
+#     'http://local:5173',
+# ]
+CORS_ALLOW_CREDENTIALS = True # 允许携带cookie
+# CORS_ALLOWED_ORIGINS = [
+#     'http://127.0.0.1:5173',
+# ]
 CORS_ALLOW_METHODS = [
-    '*', # * 表示允许全部请求头
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
 ]
+
+# 可以添加以下配置（可选）
+# CORS_ALLOW_HEADERS = [
+#     'accept',
+#     'accept-encoding',
+#     'authorization',
+#     'content-type',
+#     'dnt',
+#     'origin',
+#     'user-agent',
+#     'x-csrftoken',
+#     'x-requested-with',
+# ]
 # Application definition
 
 INSTALLED_APPS = [
@@ -42,6 +74,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "corsheaders" ,# 跨域
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'rest_framework',
@@ -53,6 +86,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware" ,# 跨域
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     'corsheaders.middleware.CorsMiddleware', # 加入中间键 位置必须在这里 不能在其他位置
@@ -62,6 +96,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 
 ROOT_URLCONF = "application.urls"
 
@@ -152,4 +187,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',  # 全局权限控制
     )
+}
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # 访问令牌有效期：1天
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # 刷新令牌有效期：7天
+    'ROTATE_REFRESH_TOKENS': True,  # 刷新令牌时自动更新刷新令牌
+    'UPDATE_LAST_LOGIN': True,  # 更新用户的最后登录时间
 }

@@ -16,6 +16,34 @@ class city(models.Model):
     fitment = models.CharField(max_length=128,verbose_name='装修',help_text='装修')
     url = models.CharField(max_length=128,verbose_name='网址',help_text='网址')
     city = models.CharField(max_length=128,verbose_name='城市',help_text='城市')
+    city_id = models.IntegerField(verbose_name='城市ID', null=True, blank=True)
+    area_id = models.IntegerField(verbose_name='区域ID', null=True, blank=True)
+    location_id = models.IntegerField(verbose_name='位置ID', null=True, blank=True)
 
     class Meta:
         db_table = "city"
+
+class city_id(models.Model):
+    id = models.AutoField(primary_key=True)
+    city = models.CharField(max_length=128,verbose_name='城市',help_text='城市')
+
+    class Meta:
+        db_table = "city_id"
+
+class Area(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=128, verbose_name='区域名称')
+    city_id = models.IntegerField(verbose_name='城市ID')
+
+    class Meta:
+        db_table = "area_id"
+    
+class Location(models.Model):
+    id = models.AutoField(primary_key=True)
+    location = models.CharField(max_length=128,verbose_name='位置',help_text='位置')
+    area_id = models.IntegerField(verbose_name='区id',help_text='区id')
+
+    class Meta:
+        db_table = "location_id"
+
+
