@@ -8,6 +8,7 @@ __pycache__/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+nohup.out
 
 # Virtual Environment
 venv/
@@ -22,3 +23,7 @@ ENV/
 
 # OS
 .DS_Store
+
+# 特定配置文件
+local_config.py
+application/local_config.py
