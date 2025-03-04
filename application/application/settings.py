@@ -19,6 +19,17 @@ try:
 except ImportError:
     # 如果本地配置不存在，使用默认值
     API_HOST = '127.0.0.1'
+    # 默认数据库配置
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": "pachong",
+            "USER": 'root',
+            "PASSWORD": '12345678',
+            "HOST": 'localhost',
+            "PORT": '3306'
+        }
+    }
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -130,16 +141,7 @@ WSGI_APPLICATION = "application.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME":"pachong",
-        "USER":'root',
-        "PASSWORD":'12345678',
-        "HOST":'localhost',
-        "PORT":'3306'
-    }
-}
+# 数据库配置已从 local_config.py 导入，或使用上面的默认配置
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
