@@ -11,6 +11,14 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+# 尝试导入本地配置
+try:
+    from .local_config import *
+except ImportError:
+    # 如果本地配置不存在，使用默认值
+    API_HOST = '127.0.0.1'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

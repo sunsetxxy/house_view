@@ -21,8 +21,10 @@ from rest_framework import permissions
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
 from drf_yasg.views import get_schema_view
+from django.conf import settings
 
-DOCS_BACKEND_URL = f'http://127.0.0.1:8000/docs/'
+# 使用从 settings 导入的 API_HOST
+DOCS_BACKEND_URL = f'http://{settings.API_HOST}:8000/docs/'
 
 schema_view = get_schema_view(
     openapi.Info(
