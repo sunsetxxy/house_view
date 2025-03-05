@@ -5,7 +5,7 @@ djangorestframework_simplejwt==5.4.0
 django-cors-headers==4.6.0
 django-filter==25.1
 asgiref==3.8.1
-
+pyecharts==1.9.5
 # API 文档
 drf-yasg==1.21.8
 
