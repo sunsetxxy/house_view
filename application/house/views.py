@@ -23,6 +23,13 @@ from house.filters import HouseFilter
 from house.models import city, Area, Location
 
 
+from pyecharts.charts import Bar, Pie, Line
+from pyecharts import options as opts
+from django.http import HttpResponse
+from pyecharts.globals import ThemeType
+from django.db.models import Avg, Count
+
+
 class HousePagination(PageNumberPagination):
     page_size = 30  # 每页显示的条目数
     page_size_query_param = 'size'  # 修改为size参数
@@ -198,4 +205,53 @@ class LocationListView(APIView):
                 'info': '服务器内部错误',
                 'data': []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 添加新的视图类
+class HouseAnalysisView(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+
+    def get(self, request):
+        # 1. 各城市房屋均价
+        city_avg_price = city.objects.values('city').annotate(
+            avg_price=Avg('price'),
+            count=Count('id')
+        ).order_by('-avg_price')
+
+        # 创建柱状图
+        bar = Bar(init_opts=opts.InitOpts(theme=ThemeType.LIGHT))
+        bar.add_xaxis([item['city'] for item in city_avg_price])
+        bar.add_yaxis("平均房价(万元)", [round(item['avg_price'], 2) for item in city_avg_price])
+        bar.set_global_opts(
+            title_opts=opts.TitleOpts(title="各城市房屋均价"),
+            xaxis_opts=opts.AxisOpts(axislabel_opts=opts.LabelOpts(rotate=30)),
+            tooltip_opts=opts.TooltipOpts(trigger="axis"),
+        )
+
+        # 2. 户型分布饼图
+        type_distribution = city.objects.values('type_name').annotate(
+            count=Count('id')
+        ).order_by('-count')[:10]
+
+        pie = Pie(init_opts=opts.InitOpts(theme=ThemeType.LIGHT))
+        pie.add(
+            series_name="户型分布",
+            data_pair=[(item['type_name'], item['count']) for item in type_distribution],
+            radius=["40%", "75%"],
+        )
+        pie.set_global_opts(
+            title_opts=opts.TitleOpts(title="户型分布"),
+            legend_opts=opts.LegendOpts(orient="vertical", pos_top="15%", pos_left="2%")
+        )
+
+        return JsonResponse({
+            'code': '200',
+            'info': '获取成功',
+            'data': {
+                'bar_chart': bar.dump_options(),
+                'pie_chart': pie.dump_options()
+            }
+        })
         

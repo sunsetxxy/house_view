@@ -1,11 +1,12 @@
 from django.urls import path
 from rest_framework import routers
 
-from house.views import HouseViewSet,AreaListView,LocationListView
+from house.views import HouseViewSet,AreaListView,LocationListView,HouseAnalysisView
 from house.models import city
 
 urlpatterns= [
     path('citylist',HouseViewSet.as_view(),name='citylist'),
     path('areas/', AreaListView.as_view(), name='area-list'),
     path('locations/', LocationListView.as_view(), name='location-list'),
+    path('analysis/', HouseAnalysisView.as_view(), name='house-analysis'),
 ]
