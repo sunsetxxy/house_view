@@ -89,7 +89,8 @@ CORS_ALLOW_METHODS = [
 # Application definition
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    'jazzmin',  # 添加这一行，必须放在 django.contrib.admin 之前
+    'django.contrib.admin',
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -206,3 +207,6 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,  # 刷新令牌时自动更新刷新令牌
     'UPDATE_LAST_LOGIN': True,  # 更新用户的最后登录时间
 }
+
+# 导入 Jazzmin 设置
+from .jazzmin_settings import JAZZMIN_SETTINGS, JAZZMIN_UI_TWEAKS

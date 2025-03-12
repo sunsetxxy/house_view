@@ -39,3 +39,6 @@ PyJWT==1.7.1
 requests==2.32.3
 urllib3==2.3.0
 PyYAML==6.0.2
+
+# 可视化
+django-jazzmin
