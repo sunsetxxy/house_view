@@ -110,14 +110,52 @@ class RegisterView(GenericAPIView):
 
 
 class UserList(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+
+    @swagger_auto_schema(
+        operation_description="获取用户列表或根据用户名查找用户",
+        manual_parameters=[
+            openapi.Parameter(
+                'username', 
+                openapi.IN_QUERY, 
+                description="要查找的用户名(可选)", 
+                type=openapi.TYPE_STRING,
+                required=False
+            )
+        ]
+    )
     def get(self, request):
-        # 获取所有用户数据
-        valueList = list(SysUser.objects.all().values())
-        return JsonResponse({
-            'code': '200',
-            'info': '测试成功！',
-            'data': valueList
-        }, status=status.HTTP_200_OK)
+        username = request.query_params.get('username')
+        
+        if username:
+            # 如果提供了用户名参数，查找特定用户
+            try:
+                user = SysUser.objects.get(username=username)
+                serializer = UserSerializer(user)
+                return Response({
+                    'code': 200,
+                    'info': '查找成功',
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            except SysUser.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'info': '用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # 获取所有用户数据
+            users = SysUser.objects.all()
+            count = users.count()  # 获取用户总数
+            valueList = list(users.values())
+            return JsonResponse({
+                'code': '200',
+                'info': '获取用户列表成功',
+                'count': count,  # 添加用户总数
+                'data': valueList
+            }, status=status.HTTP_200_OK)
     
 class UserInfo(APIView):
     authentication_classes = (
@@ -220,46 +258,4 @@ class AdminUserUpdate(APIView):
             'info': '修改失败',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
-    
-# 新增用户查找接口
-class UserSearch(APIView):
-    authentication_classes = (
-        SessionAuthentication,
-        JWTAuthentication
-    )
-
-    @swagger_auto_schema(
-        operation_description="根据用户名查找用户",
-        manual_parameters=[
-            openapi.Parameter(
-                'username', 
-                openapi.IN_QUERY, 
-                description="要查找的用户名", 
-                type=openapi.TYPE_STRING,
-                required=True
-            )
-        ]
-    )
-    def get(self, request):
-        username = request.query_params.get('username')
-        
-        if not username:
-            return Response({
-                'code': 400,
-                'info': '用户名参数不能为空'
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
-        try:
-            user = SysUser.objects.get(username=username)
-            serializer = UserSerializer(user)
-            return Response({
-                'code': 200,
-                'info': '查找成功',
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
-        except SysUser.DoesNotExist:
-            return Response({
-                'code': 404,
-                'info': '用户不存在'
-            }, status=status.HTTP_404_NOT_FOUND)
-    
+ 
