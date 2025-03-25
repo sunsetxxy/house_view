@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework import routers
 
-from house.views import HouseViewSet, AreaListView, LocationListView, HouseStatisticsView, HousePriceStatisticsView, HouseSinglePriceStatisticsView, HouseAttributeStatisticsView
+from house.views import HouseViewSet, AreaListView, LocationListView, HouseStatisticsView, HousePriceStatisticsView, HouseSinglePriceStatisticsView, HouseAttributeStatisticsView, HouseCommunityStatisticsView
 from house.models import city
 
 urlpatterns= [
@@ -12,4 +12,5 @@ urlpatterns= [
     path('price-statistics/', HousePriceStatisticsView.as_view(), name='house-price-statistics'),
     path('single-price-statistics/', HouseSinglePriceStatisticsView.as_view(), name='house-single-price-statistics'),
     path('attribute-statistics/', HouseAttributeStatisticsView.as_view(), name='house-attribute-statistics'),
+    path('community-statistics/', HouseCommunityStatisticsView.as_view(), name='house-community-statistics'),
 ]

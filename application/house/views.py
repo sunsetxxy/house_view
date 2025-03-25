@@ -590,4 +590,69 @@ class HouseAttributeStatisticsView(APIView):
                 'info': f'服务器内部错误: {str(e)}',
                 'data': []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class HouseCommunityStatisticsView(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+    
+    @swagger_auto_schema(
+        operation_summary='获取城市各小区房源数量统计',
+        operation_description='根据城市ID获取该城市下各小区的在售房源数量，按数量从大到小排序',
+        manual_parameters=[
+            openapi.Parameter('city_id', openapi.IN_QUERY, description='城市ID', type=openapi.TYPE_INTEGER, required=True),
+            openapi.Parameter('limit', openapi.IN_QUERY, description='返回数据条数限制，默认为20', type=openapi.TYPE_INTEGER, required=False),
+        ],
+        responses={
+            200: openapi.Response('成功获取统计数据'),
+            400: openapi.Response('参数错误'),
+            500: openapi.Response('服务器内部错误'),
+        }
+    )
+    def get(self, request):
+        try:
+            city_id = request.query_params.get('city_id')
+            limit = request.query_params.get('limit', 20)
+            
+            # 验证参数
+            if not city_id or not city_id.isdigit():
+                return Response({
+                    'code': '400',
+                    'info': '缺少有效的城市ID参数',
+                    'data': []
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            try:
+                limit = int(limit)
+            except (ValueError, TypeError):
+                limit = 20
+                
+            # 查询该城市下各小区的房源数量
+            statistics = city.objects.filter(city_id=city_id)\
+                .values('house_name')\
+                .annotate(count=Count('id'))\
+                .filter(count__gt=0)\
+                .order_by('-count')[:limit]
+            
+            result = [
+                {
+                    'name': item['house_name'] or '未知小区',
+                    'value': item['count']
+                } for item in statistics
+            ]
+            
+            return Response({
+                'code': '200',
+                'info': '获取成功',
+                'data': result
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'code': '500',
+                'info': f'服务器内部错误: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
