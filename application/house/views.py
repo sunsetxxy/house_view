@@ -335,6 +335,10 @@ class HouseSinglePriceStatisticsView(APIView):
             if city_id and city_id.isdigit():
                 queryset = queryset.filter(city_id=city_id)
             
+            # 使用平均单价统计
+            price_func = Avg('single_price')
+            price_label = '平均单价'
+            
             # 根据分组方式进行统计
             if group_by == 'city':
                 # 按城市分组统计
