@@ -271,17 +271,20 @@ class HouseStatisticsView(APIView):
                 
             else:  # 默认按区域分组
                 # 按区域分组统计
-                statistics = queryset.values('area_name')\
+                statistics = queryset.values('area_id')\
                     .annotate(count=Count('id'))\
                     .filter(count__gt=0)\
                     .order_by('-count')[:limit]
                 
-                result = [
-                    {
-                        'name': item['area_name'] or '未知区域',
+                # 获取区域名称
+                result = []
+                for item in statistics:
+                    area_obj = Area.objects.filter(id=item['area_id']).first()
+                    area_name = area_obj.name if area_obj else '未知区域'
+                    result.append({
+                        'name': area_name,
                         'value': item['count']
-                    } for item in statistics
-                ]
+                    })
             
             return Response({
                 'code': '200',
@@ -371,7 +374,7 @@ class HouseSinglePriceStatisticsView(APIView):
                 
             else:  # 默认按区域分组
                 # 按区域分组统计
-                statistics = queryset.values('area_name')\
+                statistics = queryset.values('area_id')\
                     .annotate(price_value=price_func)\
                     .filter(price_value__isnull=False)\
                     .order_by('-price_value')[:limit]
@@ -436,6 +439,10 @@ class HousePriceStatisticsView(APIView):
             if city_id and city_id.isdigit():
                 queryset = queryset.filter(city_id=city_id)
             
+            # 使用平均价格统计
+            price_func = Avg('price')
+            price_label = '平均价格'
+            
             # 根据分组方式进行统计
             if group_by == 'city':
                 # 按城市分组统计
@@ -468,17 +475,20 @@ class HousePriceStatisticsView(APIView):
                 
             else:  # 默认按区域分组
                 # 按区域分组统计
-                statistics = queryset.values('area_name')\
+                statistics = queryset.values('area_id')\
                     .annotate(price_value=price_func)\
                     .filter(price_value__isnull=False)\
                     .order_by('-price_value')[:limit]
                 
-                result = [
-                    {
-                        'name': item['area_name'] or '未知区域',
+                # 获取区域名称
+                result = []
+                for item in statistics:
+                    area_obj = Area.objects.filter(id=item['area_id']).first()
+                    area_name = area_obj.name if area_obj else '未知区域'
+                    result.append({
+                        'name': area_name,
                         'value': round(float(item['price_value']), 2) if item['price_value'] else 0
-                    } for item in statistics
-                ]
+                    })
             
             return Response({
                 'code': '200',
