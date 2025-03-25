@@ -379,12 +379,15 @@ class HouseSinglePriceStatisticsView(APIView):
                     .filter(price_value__isnull=False)\
                     .order_by('-price_value')[:limit]
                 
-                result = [
-                    {
-                        'name': item['area_name'] or '未知区域',
+                # 获取区域名称
+                result = []
+                for item in statistics:
+                    area_obj = Area.objects.filter(id=item['area_id']).first()
+                    area_name = area_obj.name if area_obj else '未知区域'
+                    result.append({
+                        'name': area_name,
                         'value': round(float(item['price_value']), 2) if item['price_value'] else 0
-                    } for item in statistics
-                ]
+                    })
             
             return Response({
                 'code': '200',
