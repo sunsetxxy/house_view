@@ -21,7 +21,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from house.filters import HouseFilter
 from house.models import city, Area, Location
-from django.db.models import Count, Sum, Avg, F, ExpressionWrapper, DecimalField, Coalesce
+from django.db.models import Count, Sum, Avg, F, ExpressionWrapper, DecimalField
+from django.db.models.functions import Coalesce
 
 
 class HousePagination(PageNumberPagination):
