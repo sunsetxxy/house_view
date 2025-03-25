@@ -1,7 +1,7 @@
 
 from django.urls import path
 
-from user.views import LoginView,RegisterView,UserList,UserInfo,AdminUserUpdate
+from user.views import LoginView,RegisterView,UserList,UserInfo,AdminUserUpdate,UserSearch
 
 from rest_framework import routers
 
@@ -13,4 +13,5 @@ urlpatterns= [
     path('userlist',UserList.as_view(),name='userlist'), 
     path('userinfo',UserInfo.as_view(),name='userinfo'), 
     path('admininfo',AdminUserUpdate.as_view(),name='admininfo'), 
+    path('usersearch',UserSearch.as_view(),name='admininfo'),
 ]

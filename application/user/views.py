@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework_simplejwt.serializers import RefreshToken  # 引入Simple JWT的Token生成器
 from django.contrib.auth import authenticate
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi  # 添加这一行
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
 from django.http import JsonResponse
@@ -219,4 +220,46 @@ class AdminUserUpdate(APIView):
             'info': '修改失败',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+# 新增用户查找接口
+class UserSearch(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+
+    @swagger_auto_schema(
+        operation_description="根据用户名查找用户",
+        manual_parameters=[
+            openapi.Parameter(
+                'username', 
+                openapi.IN_QUERY, 
+                description="要查找的用户名", 
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ]
+    )
+    def get(self, request):
+        username = request.query_params.get('username')
+        
+        if not username:
+            return Response({
+                'code': 400,
+                'info': '用户名参数不能为空'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = SysUser.objects.get(username=username)
+            serializer = UserSerializer(user)
+            return Response({
+                'code': 200,
+                'info': '查找成功',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+        except SysUser.DoesNotExist:
+            return Response({
+                'code': 404,
+                'info': '用户不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
     
