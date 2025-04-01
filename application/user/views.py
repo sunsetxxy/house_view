@@ -87,12 +87,9 @@ class RegisterView(GenericAPIView):
                 'info': '邮箱已被注册'
             }, status=status.HTTP_409_CONFLICT)
 
-        # 创建用户（自动处理密码哈希）
-        user = SysUser.objects.create_user(
-            username=username,
-            email=email,
-            password=serializer.validated_data['password']
-        )
+        # 创建用户（使用序列化器的save方法，自动处理is_staff字段）
+        serializer.context['request'] = request  # 添加request到上下文，用于权限验证
+        user = serializer.save()
 
         # 可选：生成并返回Token实现自动登录
         # refresh = RefreshToken.for_user(user)

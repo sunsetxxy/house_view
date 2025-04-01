@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import city, city_id, Area, Location
+from django.utils.translation import gettext_lazy as _
 
 # 城市房产信息管理
 @admin.register(city)
@@ -11,25 +12,41 @@ class CityAdmin(admin.ModelAdmin):
     ordering = ('-price',)  # 默认按价格降序排列
     readonly_fields = ('url',)  # 网址字段设为只读
     fieldsets = (
-        ('基本信息', {
-            'fields': ('house_name', 'city', 'city_name', 'localhost')
+        (_('基本信息'), {
+            'fields': ('house_name', 'city', 'city_name', 'localhost'),
+            'description': _('房产的基本信息，包括名称和位置')
         }),
-        ('价格信息', {
-            'fields': ('price', 'single_price')
+        (_('价格信息'), {
+            'fields': ('price', 'single_price'),
+            'description': _('房产的价格相关信息')
         }),
-        ('房屋特性', {
-            'fields': ('type_name', 'use_area', 'forword', 'floor', 'fitment')
+        (_('房屋特性'), {
+            'fields': ('type_name', 'use_area', 'forword', 'floor', 'fitment'),
+            'description': _('房屋的物理特性和装修情况')
         }),
-        ('其他信息', {
-            'fields': ('url', 'city_id', 'area_id', 'location_id')
+        (_('其他信息'), {
+            'fields': ('url', 'city_id', 'area_id', 'location_id'),
+            'description': _('房产的其他相关信息和关联ID')
         }),
     )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.order_by('-price')  # 默认按价格降序排列
 
 # 城市基础信息管理
 @admin.register(city_id)
 class CityIdAdmin(admin.ModelAdmin):
     list_display = ('id', 'city')
     search_fields = ('city',)
+    list_per_page = 20
+    
+    fieldsets = (
+        (_('城市信息'), {
+            'fields': ('city',),
+            'description': _('城市基础信息')
+        }),
+    )
 
 # 区域管理
 @admin.register(Area)
@@ -37,6 +54,14 @@ class AreaAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'get_city_name')
     list_filter = ('city_id',)
     search_fields = ('name',)
+    list_per_page = 20
+    
+    fieldsets = (
+        (_('区域信息'), {
+            'fields': ('name', 'city_id'),
+            'description': _('区域基础信息及所属城市')
+        }),
+    )
     
     def get_city_name(self, obj):
         try:
@@ -54,6 +79,14 @@ class LocationAdmin(admin.ModelAdmin):
     list_display = ('id', 'location', 'get_area_name', 'get_city_name', 'get_house_count')
     list_filter = ('area_id',)
     search_fields = ('location',)
+    list_per_page = 20
+    
+    fieldsets = (
+        (_('位置信息'), {
+            'fields': ('location', 'area_id'),
+            'description': _('位置基础信息及所属区域')
+        }),
+    )
     
     def get_area_name(self, obj):
         try:

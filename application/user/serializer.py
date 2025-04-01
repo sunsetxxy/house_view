@@ -23,24 +23,45 @@ class RegisterSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(
         write_only=True,
-        required=True,
-        validators=[validate_password]
+        required=True
     )
     password2 = serializers.CharField(write_only=True, required=True)
+    is_staff = serializers.BooleanField(required=False, default=False, help_text='是否为管理员')
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'password2')
+        fields = ('username', 'email', 'password', 'password2', 'is_staff')
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError("两次密码不一致")
+        password = attrs.get('password')
+        
+        # 检查两次密码是否一致
+        if password != attrs.get('password2'):
+            raise serializers.ValidationError({"password2": ["两次密码不一致"]})
+        
+        # 自定义密码验证逻辑：密码长度至少为6位
+        if len(password) < 6:
+            raise serializers.ValidationError({
+                "password": ["密码长度不能少于6个字符。"]
+            })
+            
+        # 检查是否设置了管理员权限
+        if attrs.get('is_staff', False):
+            # 检查当前用户是否有权限设置管理员
+            request = self.context.get('request')
+            if not request or not request.user.is_authenticated or not request.user.is_staff:
+                raise serializers.ValidationError({
+                    "is_staff": ["只有管理员才能创建其他管理员账户"]
+                })
+            
         return attrs
 
     def create(self, validated_data):
         # 移除重复密码字段
         validated_data.pop('password2')
-        return User.objects.create_user(**validated_data)
+        # 创建用户并设置管理员权限
+        user = User.objects.create_user(**validated_data)
+        return user
     
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
