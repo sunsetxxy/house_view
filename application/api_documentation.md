@@ -56,9 +56,19 @@ Authorization: Bearer [access_token]
   "username": "用户名",
   "email": "邮箱",
   "password": "密码",
-  "password2": "确认密码"
+  "password2": "确认密码",
+  "first_name": "名字",
+  "last_name": "姓氏",
+  "is_staff": false,
+  "is_active": true
 }
 ```
+
+- **参数说明**:
+  - `first_name`: 可选，用户名字
+  - `last_name`: 可选，用户姓氏
+  - `is_staff`: 可选，是否为管理员，默认为false
+  - `is_active`: 可选，是否激活账号，默认为true
 
 - **响应示例**:
 
