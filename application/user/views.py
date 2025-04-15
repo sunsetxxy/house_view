@@ -227,32 +227,65 @@ class AdminUserUpdate(APIView):
 
     @swagger_auto_schema(
         operation_description="管理员修改用户信息",
-        request_body=AdminUserUpdateSerializer
+        request_body=AdminUserUpdateSerializer,
+        responses={
+            200: openapi.Response('用户信息修改成功'),
+            400: openapi.Response('参数错误'),
+            401: openapi.Response('未认证'),
+            403: openapi.Response('权限不足'),
+            404: openapi.Response('用户不存在'),
+            500: openapi.Response('服务器内部错误'),
+        }
     )
     def put(self, request, user_id):
         try:
-            user = SysUser.objects.get(id=user_id)
-        except SysUser.DoesNotExist:
-            return Response({
-                'code': 404,
-                'info': '用户不存在'
-            }, status=status.HTTP_404_NOT_FOUND)
+            # 检查当前用户是否有管理员权限
+            if not request.user.is_staff:
+                return Response({
+                    'code': 403,
+                    'info': '权限不足，需要管理员权限'
+                }, status=status.HTTP_403_FORBIDDEN)
+                
+            # 查找要修改的用户
+            try:
+                user = SysUser.objects.get(id=user_id)
+            except SysUser.DoesNotExist:
+                return Response({
+                    'code': 404,
+                    'info': '用户不存在'
+                }, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = AdminUserUpdateSerializer(
-            user,
-            data=request.data,
-            partial=True
-        )
-        if serializer.is_valid():
-            serializer.save()
+            # 验证并保存数据
+            serializer = AdminUserUpdateSerializer(
+                user,
+                data=request.data,
+                partial=True,
+                context={'request': request}  # 添加请求上下文
+            )
+            
+            if serializer.is_valid():
+                # 保存修改
+                updated_user = serializer.save()
+                
+                # 返回成功响应
+                return Response({
+                    'code': 200,
+                    'info': '用户信息修改成功',
+                    'data': serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                # 返回验证错误
+                return Response({
+                    'code': 400,
+                    'info': '修改失败',
+                    'errors': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            # 处理意外异常
             return Response({
-                'code': 200,
-                'info': '用户信息修改成功',
-                'data': serializer.data
-            })
-        return Response({
-            'code': 400,
-            'info': '修改失败',
-            'errors': serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
+                'code': 500,
+                'info': f'服务器内部错误: {str(e)}',
+                'data': {}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
  

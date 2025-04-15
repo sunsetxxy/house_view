@@ -655,4 +655,107 @@ class HouseCommunityStatisticsView(APIView):
                 'info': f'服务器内部错误: {str(e)}',
                 'data': []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class HouseUpdateView(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        operation_summary='修改房源信息',
+        operation_description='根据房源ID修改房源信息',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['id'],
+            properties={
+                'id': openapi.Schema(type=openapi.TYPE_INTEGER, description='房源ID'),
+                'house_name': openapi.Schema(type=openapi.TYPE_STRING, description='小区名称'),
+                'price': openapi.Schema(type=openapi.TYPE_NUMBER, description='总价'),
+                'single_price': openapi.Schema(type=openapi.TYPE_NUMBER, description='单价'),
+                'type_name': openapi.Schema(type=openapi.TYPE_STRING, description='户型'),
+                'floor': openapi.Schema(type=openapi.TYPE_STRING, description='楼层'),
+                'use_area': openapi.Schema(type=openapi.TYPE_NUMBER, description='面积'),
+                'fitment': openapi.Schema(type=openapi.TYPE_STRING, description='装修'),
+                'forword': openapi.Schema(type=openapi.TYPE_STRING, description='朝向'),
+                'localhost': openapi.Schema(type=openapi.TYPE_STRING, description='具体位置'),
+                'city_name': openapi.Schema(type=openapi.TYPE_STRING, description='区域名称'),
+                'city_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='城市ID'),
+                'area_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='区域ID'),
+                'location_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='位置ID'),
+            }
+        ),
+        responses={
+            200: openapi.Response('修改成功'),
+            400: openapi.Response('参数错误'),
+            401: openapi.Response('未认证'),
+            404: openapi.Response('房源不存在'),
+            500: openapi.Response('服务器内部错误'),
+        }
+    )
+    def put(self, request):
+        try:
+            data = request.data
+            house_id = data.get('id')
+            
+            if not house_id:
+                return Response({
+                    'code': '400',
+                    'info': '缺少房源ID',
+                    'data': {}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 查找房源
+            house = city.objects.filter(id=house_id).first()
+            if not house:
+                return Response({
+                    'code': '404',
+                    'info': '房源不存在',
+                    'data': {}
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # 更新房源信息
+            update_fields = {}
+            
+            # 可更新的字段列表
+            updatable_fields = [
+                'house_name', 'price', 'single_price', 'type_name', 
+                'floor', 'use_area', 'fitment', 'forword', 'localhost', 
+                'city_name', 'city_id', 'area_id', 'location_id'
+            ]
+            
+            # 检查并添加需要更新的字段
+            for field in updatable_fields:
+                if field in data and data[field] is not None:
+                    update_fields[field] = data[field]
+            
+            # 如果没有需要更新的字段
+            if not update_fields:
+                return Response({
+                    'code': '400',
+                    'info': '没有提供需要更新的字段',
+                    'data': {}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 更新房源
+            city.objects.filter(id=house_id).update(**update_fields)
+            
+            # 获取更新后的房源信息
+            updated_house = city.objects.get(id=house_id)
+            serializer = HouseSerializer(updated_house)
+            
+            return Response({
+                'code': '200',
+                'info': '房源信息修改成功',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'code': '500',
+                'info': f'服务器内部错误: {str(e)}',
+                'data': {}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         

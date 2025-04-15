@@ -103,7 +103,6 @@ class ChangePasswordSerializer(serializers.Serializer):
 
         
 class AdminUserUpdateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(required=False, write_only=True)
     is_staff = serializers.BooleanField(required=False)
     is_active = serializers.BooleanField(required=False, help_text='是否激活账号')
     first_name = serializers.CharField(required=False)
@@ -111,11 +110,9 @@ class AdminUserUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'is_staff', 'is_active']
+        fields = ['username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active']
         
     def update(self, instance, validated_data):
-        if 'password' in validated_data:
-            instance.set_password(validated_data.pop('password'))
         if 'is_staff' in validated_data:
             instance.is_staff = validated_data.pop('is_staff')
         if 'is_active' in validated_data:

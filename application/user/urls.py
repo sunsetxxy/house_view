@@ -11,5 +11,5 @@ urlpatterns= [
     path('register',RegisterView.as_view(),name='register'), 
     path('userlist',UserList.as_view(),name='userlist'), 
     path('userinfo',UserInfo.as_view(),name='userinfo'), 
-    path('admininfo',AdminUserUpdate.as_view(),name='admininfo'), 
+    path('admininfo/<int:user_id>',AdminUserUpdate.as_view(),name='admininfo'), 
 ]
