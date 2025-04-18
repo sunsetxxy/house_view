@@ -1,11 +1,12 @@
 from django.urls import path
 from rest_framework import routers
+from django.views.generic import TemplateView
 
 from house.views import (
     HouseViewSet, AreaListView, LocationListView, 
     HouseStatisticsView, HouseSinglePriceStatisticsView, 
     HousePriceStatisticsView, HouseAttributeStatisticsView,
-    HouseCommunityStatisticsView, HouseUpdateView  # 添加HouseUpdateView导入
+    HouseCommunityStatisticsView, HouseUpdateView, HouseClusterAnalysisView  # 添加HouseClusterAnalysisView导入
 )
 
 urlpatterns = [
@@ -20,4 +21,9 @@ urlpatterns = [
     
     # 添加房源信息修改接口
     path('house/update/', HouseUpdateView.as_view(), name='house_update'),
+    
+    # 添加房源聚类分析接口
+    path('cluster-analysis/', HouseClusterAnalysisView.as_view(), name='house-cluster-analysis'),
+    # 直接访问聚类分析页面
+    path('cluster-analysis-page/', TemplateView.as_view(template_name='house/house_cluster_analysis.html'), name='house-cluster-analysis-page'),
 ]
