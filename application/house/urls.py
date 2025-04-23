@@ -19,11 +19,9 @@ urlpatterns = [
     path('attribute-statistics/', HouseAttributeStatisticsView.as_view(), name='house-attribute-statistics'),
     path('community-statistics/', HouseCommunityStatisticsView.as_view(), name='house-community-statistics'),
     
-    # 添加房源信息修改接口
+    # 房源信息修改接口
     path('house/update/', HouseUpdateView.as_view(), name='house_update'),
     
-    # 添加房源聚类分析接口
+    # 房源聚类分析接口
     path('cluster-analysis/', HouseClusterAnalysisView.as_view(), name='house-cluster-analysis'),
-    # 直接访问聚类分析页面
-    path('cluster-analysis-page/', TemplateView.as_view(template_name='house/house_cluster_analysis.html'), name='house-cluster-analysis-page'),
 ]

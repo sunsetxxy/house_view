@@ -27,7 +27,8 @@ from django.db.models.functions import Coalesce
 # 导入聚类分析所需的库
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder # 添加 OneHotEncoder
+from sklearn.compose import ColumnTransformer # 添加 ColumnTransformer
 from sklearn.decomposition import PCA
 import pandas as pd
 
@@ -515,222 +516,6 @@ class HousePriceStatisticsView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class HouseClusterAnalysisView(APIView):
-    authentication_classes = (
-        SessionAuthentication,
-        JWTAuthentication
-    )
-    
-    @swagger_auto_schema(
-        operation_summary='房屋聚类分析',
-        operation_description='对房屋数据进行聚类分析，返回聚类结果',
-        manual_parameters=[
-            openapi.Parameter('city_id', openapi.IN_QUERY, description='城市ID(可选)', type=openapi.TYPE_INTEGER, required=False),
-            openapi.Parameter('area_id', openapi.IN_QUERY, description='区域ID(可选)', type=openapi.TYPE_INTEGER, required=False),
-            openapi.Parameter('n_clusters', openapi.IN_QUERY, description='聚类数量，默认为3', type=openapi.TYPE_INTEGER, required=False),
-            openapi.Parameter('features', openapi.IN_QUERY, description='用于聚类的特征，多个特征用逗号分隔，默认为price,single_price,use_area', type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('limit', openapi.IN_QUERY, description='返回每个聚类的样本数量限制，默认为10', type=openapi.TYPE_INTEGER, required=False),
-        ],
-        responses={
-            200: openapi.Response('成功获取聚类结果'),
-            400: openapi.Response('参数错误'),
-            500: openapi.Response('服务器内部错误'),
-        }
-    )
-    def get(self, request):
-        try:
-            # 获取参数
-            city_id = request.query_params.get('city_id')
-            area_id = request.query_params.get('area_id')
-            n_clusters = request.query_params.get('n_clusters', '3')
-            features_str = request.query_params.get('features', 'price,single_price,use_area')
-            limit_per_cluster = request.query_params.get('limit', '10')
-            
-            try:
-                n_clusters = int(n_clusters)
-                if n_clusters < 2 or n_clusters > 10:
-                    n_clusters = 3  # 默认值，避免极端值
-            except (ValueError, TypeError):
-                n_clusters = 3
-                
-            try:
-                limit_per_cluster = int(limit_per_cluster)
-                if limit_per_cluster < 1 or limit_per_cluster > 100:
-                    limit_per_cluster = 10
-            except (ValueError, TypeError):
-                limit_per_cluster = 10
-            
-            # 解析特征列表
-            features = features_str.split(',')
-            valid_features = []
-            
-            # 验证特征是否有效
-            all_valid_features = ['price', 'single_price', 'use_area']
-            for feature in features:
-                feature = feature.strip()
-                if feature in all_valid_features:
-                    valid_features.append(feature)
-            
-            # 如果没有有效特征，使用默认特征
-            if not valid_features:
-                valid_features = ['price', 'single_price', 'use_area']
-            
-            # 初始化查询集
-            queryset = city.objects.all()
-            
-            # 应用过滤条件
-            if city_id and city_id.isdigit():
-                queryset = queryset.filter(city_id=city_id)
-            if area_id and area_id.isdigit():
-                queryset = queryset.filter(area_id=area_id)
-            
-            # 确保有足够的数据进行聚类
-            if queryset.count() < n_clusters * 2:
-                return Response({
-                    'code': '400',
-                    'info': '数据量不足，无法进行聚类分析',
-                    'data': []
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 提取特征数据
-            data = list(queryset.values('id', 'house_name', 'city_name', 'localhost', *valid_features))
-            
-            # 转换为DataFrame
-            df = pd.DataFrame(data)
-            
-            # 提取特征矩阵
-            X = df[valid_features].values
-            
-            # 标准化特征
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
-            
-            # 应用K-means聚类
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            clusters = kmeans.fit_predict(X_scaled)
-            
-            # 将聚类结果添加到DataFrame
-            df['cluster'] = clusters
-            
-            # 计算每个聚类的中心点（原始特征空间）
-            cluster_centers = []
-            for i in range(n_clusters):
-                cluster_data = df[df['cluster'] == i]
-                center = {}
-                for feature in valid_features:
-                    center[feature] = float(cluster_data[feature].mean())
-                center['count'] = int(cluster_data.shape[0])
-                center['cluster_id'] = i
-                cluster_centers.append(center)
-            
-            # 对每个聚类，选择代表性样本
-            cluster_samples = []
-            for i in range(n_clusters):
-                cluster_df = df[df['cluster'] == i]
-                
-                # 如果聚类中的样本数量小于限制，则全部返回
-                if cluster_df.shape[0] <= limit_per_cluster:
-                    samples = cluster_df
-                else:
-                    # 计算到聚类中心的距离
-                    cluster_center = kmeans.cluster_centers_[i]
-                    
-                    # 为每个样本计算到中心的距离
-                    distances = []
-                    for idx, row in cluster_df.iterrows():
-                        sample_features = [row[feature] for feature in valid_features]
-                        sample_features_scaled = scaler.transform([sample_features])[0]
-                        distance = np.linalg.norm(sample_features_scaled - cluster_center)
-                        distances.append((idx, distance))
-                    
-                    # 按距离排序，选择最接近中心的样本
-                    distances.sort(key=lambda x: x[1])
-                    closest_indices = [x[0] for x in distances[:limit_per_cluster]]
-                    samples = cluster_df.loc[closest_indices]
-                
-                # 转换为列表并添加到结果中
-                for _, row in samples.iterrows():
-                    sample_dict = {
-                        'id': int(row['id']),
-                        'house_name': row['house_name'],
-                        'city_name': row['city_name'],
-                        'localhost': row['localhost'],
-                        'cluster_id': int(row['cluster'])
-                    }
-                    for feature in valid_features:
-                        sample_dict[feature] = float(row[feature])
-                    cluster_samples.append(sample_dict)
-            
-            # 准备PCA降维结果用于可视化（如果特征数量大于2）
-            visualization_data = None
-            if len(valid_features) > 2:
-                pca = PCA(n_components=2)
-                X_pca = pca.fit_transform(X_scaled)
-                
-                # 创建可视化数据
-                visualization_data = []
-                for i, (x, y) in enumerate(X_pca):
-                    visualization_data.append({
-                        'id': int(df.iloc[i]['id']),
-                        'x': float(x),
-                        'y': float(y),
-                        'cluster_id': int(clusters[i])
-                    })
-            
-            # 构建响应数据
-            response_data = {
-                'clusters': cluster_centers,
-                'samples': cluster_samples,
-                'features': valid_features,
-                'visualization': visualization_data
-            }
-            
-            # 确保总是返回visualization字段
-            visualization_data = []
-            if len(valid_features) > 2:
-                pca = PCA(n_components=2)
-                X_pca = pca.fit_transform(X_scaled)
-                for i, (x, y) in enumerate(X_pca):
-                    visualization_data.append({
-                        'id': int(df.iloc[i]['id']),
-                        'x': float(x),
-                        'y': float(y),
-                        'cluster_id': int(clusters[i])
-                    })
-            else:
-                # 当特征数量<=2时，直接使用标准化后的特征值作为坐标
-                for i in range(len(X_scaled)):
-                    visualization_data.append({
-                        'id': int(df.iloc[i]['id']),
-                        'x': float(X_scaled[i][0]),
-                        'y': float(X_scaled[i][1]) if len(valid_features) > 1 else 0,
-                        'cluster_id': int(clusters[i])
-                    })
-            
-            # 添加聚类统计信息
-            for cluster in cluster_centers:
-                cluster['avg_price'] = cluster.get('price', 0)
-                cluster['avg_area'] = cluster.get('use_area', 0)
-                cluster['representative_house'] = next(
-                    (s['house_name'] for s in cluster_samples if s['cluster_id'] == cluster['cluster_id']),
-                    ''
-                )
-            
-            return Response({
-                'code': '200',
-                'info': '聚类分析成功',
-                'data': response_data,
-                'features': valid_features,
-                'n_clusters': n_clusters
-            }, status=status.HTTP_200_OK)
-            
-        except Exception as e:
-            return Response({
-                'code': '500',
-                'info': f'服务器内部错误: {str(e)}',
-                'data': []
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class HouseAttributeStatisticsView(APIView):
     authentication_classes = (
@@ -983,3 +768,267 @@ class HouseUpdateView(APIView):
                 'data': {}
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+
+
+class HouseClusterAnalysisView(APIView):
+    authentication_classes = (
+        SessionAuthentication,
+        JWTAuthentication
+    )
+    
+    @swagger_auto_schema(
+        operation_summary='房屋聚类分析',
+        operation_description='对房屋数据进行聚类分析，返回聚类结果',
+        manual_parameters=[
+            openapi.Parameter('city_id', openapi.IN_QUERY, description='城市ID(可选)', type=openapi.TYPE_INTEGER, required=False),
+            openapi.Parameter('area_id', openapi.IN_QUERY, description='区域ID(可选)', type=openapi.TYPE_INTEGER, required=False),
+            openapi.Parameter('n_clusters', openapi.IN_QUERY, description='聚类数量，默认为3', type=openapi.TYPE_INTEGER, required=False),
+            # 更新默认特征列表和描述
+            openapi.Parameter('features', openapi.IN_QUERY, description='用于聚类的特征，多个特征用逗号分隔，默认为price,single_price,use_area,floor,type_name,forword,fitment', type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('limit', openapi.IN_QUERY, description='返回每个聚类的样本数量限制，默认为10', type=openapi.TYPE_INTEGER, required=False),
+        ],
+        responses={
+            200: openapi.Response('成功获取聚类结果'),
+            400: openapi.Response('参数错误'),
+            500: openapi.Response('服务器内部错误'),
+        }
+    )
+    def get(self, request):
+        try:
+            # 获取参数
+            city_id = request.query_params.get('city_id')
+            area_id = request.query_params.get('area_id')
+            n_clusters = request.query_params.get('n_clusters', '3')
+            # 默认包含新特征
+            features_str = request.query_params.get('features', 'price,single_price,use_area,floor,type_name,forword,fitment')
+            limit_per_cluster = request.query_params.get('limit', '10')
+            
+            try:
+                n_clusters = int(n_clusters)
+                if n_clusters < 2 or n_clusters > 10:
+                    n_clusters = 3
+            except (ValueError, TypeError):
+                n_clusters = 3
+                
+            try:
+                limit_per_cluster = int(limit_per_cluster)
+                if limit_per_cluster < 1 or limit_per_cluster > 100:
+                    limit_per_cluster = 10
+            except (ValueError, TypeError):
+                limit_per_cluster = 10
+            
+            # 解析特征列表
+            requested_features = [f.strip() for f in features_str.split(',') if f.strip()]
+            
+            # 定义所有可能的有效特征和它们的类型
+            all_valid_features_info = {
+                'price': 'numeric',
+                'single_price': 'numeric',
+                'use_area': 'numeric',
+                'floor': 'categorical', 
+                'type_name': 'categorical',
+                'forword': 'categorical',
+                'fitment': 'categorical'
+            }
+            
+            # 筛选出用户请求的有效特征
+            valid_features = [f for f in requested_features if f in all_valid_features_info]
+            
+            # 如果没有有效特征，使用默认数值特征
+            if not valid_features:
+                valid_features = ['price', 'single_price', 'use_area']
+            
+            # 分离数值和分类特征
+            numeric_features = [f for f in valid_features if all_valid_features_info[f] == 'numeric']
+            categorical_features = [f for f in valid_features if all_valid_features_info[f] == 'categorical']
+
+            # 初始化查询集
+            queryset = city.objects.all()
+            
+            # 应用过滤条件
+            if city_id and city_id.isdigit():
+                queryset = queryset.filter(city_id=city_id)
+            if area_id and area_id.isdigit():
+                queryset = queryset.filter(area_id=area_id)
+            
+            # 确保有足够的数据进行聚类
+            if queryset.count() < n_clusters * 2:
+                return Response({
+                    'code': '400',
+                    'info': '数据量不足，无法进行聚类分析',
+                    'data': []
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 提取所需数据，包括原始特征和ID等信息
+            data_fields = ['id', 'house_name', 'city_name', 'localhost'] + valid_features
+            data = list(queryset.values(*data_fields))
+            
+            # 转换为DataFrame
+            df = pd.DataFrame(data)
+
+            # 处理缺失值 (例如，用均值填充数值特征，用众数或特定值填充分类特征)
+            for col in numeric_features:
+                if df[col].isnull().any():
+                    df[col].fillna(df[col].mean(), inplace=True)
+            for col in categorical_features:
+                if df[col].isnull().any():
+                    # 填充为 '未知' 或最常见的类别
+                    mode_val = df[col].mode()
+                    fill_value = mode_val[0] if not mode_val.empty else '未知'
+                    df[col].fillna(fill_value, inplace=True)
+                    # 确保填充后的值是字符串类型，以便编码器处理
+                    df[col] = df[col].astype(str)
+            
+            # 创建预处理管道
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ('num', StandardScaler(), numeric_features),
+                    ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
+                ],
+                remainder='passthrough' # 保留其他列（如果需要）
+            )
+
+            # 应用预处理
+            try:
+                X_processed = preprocessor.fit_transform(df[valid_features])
+                # 获取编码后的特征名称
+                encoded_feature_names = preprocessor.get_feature_names_out()
+            except ValueError as e:
+                 # 如果分类特征只有单一值，OneHotEncoder会出错，这时可以考虑排除该特征或特殊处理
+                 return Response({
+                    'code': '400',
+                    'info': f'特征预处理失败: {str(e)}. 可能某个分类特征只有单一值。',
+                    'data': []
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 应用K-means聚类
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            clusters = kmeans.fit_predict(X_processed)
+            
+            # 将聚类结果添加到DataFrame
+            df['cluster'] = clusters
+            
+            # 计算每个聚类的中心点（在处理后的特征空间）
+            cluster_centers_processed = kmeans.cluster_centers_
+
+            # 计算每个聚类的统计信息 (在原始特征空间计算均值更有意义)
+            cluster_centers_original = []
+            for i in range(n_clusters):
+                cluster_data = df[df['cluster'] == i]
+                center = {}
+                for feature in numeric_features:
+                    center[feature] = float(cluster_data[feature].mean()) if not cluster_data.empty else 0
+                # 对于分类特征，可以报告最常见的类别
+                for feature in categorical_features:
+                    mode_val = cluster_data[feature].mode()
+                    center[feature] = mode_val[0] if not mode_val.empty else 'N/A'
+                center['count'] = int(cluster_data.shape[0])
+                center['cluster_id'] = i
+                cluster_centers_original.append(center)
+            
+            # 对每个聚类，选择代表性样本
+            cluster_samples = []
+            for i in range(n_clusters):
+                cluster_df = df[df['cluster'] == i]
+                
+                if cluster_df.empty:
+                    continue
+
+                # 如果聚类中的样本数量小于限制，则全部返回
+                if cluster_df.shape[0] <= limit_per_cluster:
+                    samples_df = cluster_df
+                else:
+                    # 计算到聚类中心(处理后空间)的距离
+                    cluster_center_proc = cluster_centers_processed[i]
+                    
+                    # 获取该聚类处理后的特征
+                    cluster_indices = cluster_df.index
+                    X_cluster_processed = X_processed[cluster_indices]
+                    
+                    # 计算距离
+                    distances = np.linalg.norm(X_cluster_processed - cluster_center_proc, axis=1)
+                    
+                    # 获取距离最近的样本的索引 (在原始df中的索引)
+                    closest_indices_in_cluster = np.argsort(distances)[:limit_per_cluster]
+                    closest_original_indices = cluster_df.iloc[closest_indices_in_cluster].index
+                    samples_df = df.loc[closest_original_indices]
+                
+                # 转换为列表并添加到结果中
+                for _, row in samples_df.iterrows():
+                    sample_dict = {
+                        'id': int(row['id']),
+                        'house_name': row['house_name'],
+                        'city_name': row['city_name'],
+                        'localhost': row['localhost'],
+                        'cluster_id': int(row['cluster'])
+                    }
+                    # 添加所有请求的原始特征值
+                    for feature in valid_features:
+                        # 数值特征转为 float，分类特征保持原样 (通常是字符串)
+                        if feature in numeric_features:
+                            sample_dict[feature] = float(row[feature]) if pd.notna(row[feature]) else None
+                        else:
+                            sample_dict[feature] = row[feature] # 保持原始分类值
+                    cluster_samples.append(sample_dict)
+            
+            # 准备PCA降维结果用于可视化（在处理后的特征空间上进行）
+            visualization_data = []
+            if X_processed.shape[1] > 1: # 至少需要两个维度才能可视化
+                if X_processed.shape[1] > 2:
+                    pca = PCA(n_components=2)
+                    X_pca = pca.fit_transform(X_processed)
+                else: # 如果处理后刚好是2维，直接使用
+                    X_pca = X_processed
+                
+                # 创建可视化数据
+                for i in range(df.shape[0]): # 遍历所有原始数据点
+                    original_index = df.index[i]
+                    visualization_data.append({
+                        'id': int(df.loc[original_index, 'id']),
+                        'x': float(X_pca[i, 0]),
+                        'y': float(X_pca[i, 1]),
+                        'cluster_id': int(df.loc[original_index, 'cluster'])
+                    })
+            elif X_processed.shape[1] == 1: # 如果只有1维
+                 for i in range(df.shape[0]):
+                    original_index = df.index[i]
+                    visualization_data.append({
+                        'id': int(df.loc[original_index, 'id']),
+                        'x': float(X_processed[i, 0]),
+                        'y': 0.0, # Y轴设为0
+                        'cluster_id': int(df.loc[original_index, 'cluster'])
+                    })
+            
+            # 构建响应数据
+            response_data = {
+                'clusters': cluster_centers_original, # 返回基于原始特征计算的统计信息
+                'samples': cluster_samples,
+                'features': valid_features, # 返回用户请求的特征列表
+                'visualization': visualization_data
+            }
+            
+            # 添加一些统计信息到聚类中心描述中
+            for cluster in cluster_centers_original:
+                cluster['avg_price'] = cluster.get('price', 0)
+                cluster['avg_area'] = cluster.get('use_area', 0)
+                # 查找代表性房屋名称
+                representative_sample = next((s for s in cluster_samples if s['cluster_id'] == cluster['cluster_id']), None)
+                cluster['representative_house'] = representative_sample['house_name'] if representative_sample else 'N/A'
+            
+            return Response({
+                'code': '200',
+                'info': '聚类分析成功',
+                'data': response_data,
+                'features_used': valid_features, # 明确指出实际使用的特征
+                'n_clusters': n_clusters
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc()) # 打印详细错误信息到服务器日志
+            return Response({
+                'code': '500',
+                'info': f'服务器内部错误: {str(e)}',
+                'data': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
