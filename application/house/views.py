@@ -903,7 +903,7 @@ class HouseClusterAnalysisView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # 应用K-means聚类
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10) # 新版本n_init='auto'
             clusters = kmeans.fit_predict(X_processed)
             
             # 将聚类结果添加到DataFrame

@@ -64,13 +64,13 @@ def main(page):
 
 
 if __name__ == "__main__":
-    # page = range(31,39)
-    # print('爬虫开始')
-    # for p in page:
-    #     main(p)
-    # print("爬虫结束")
-    page = range(355,399)#从354继续爬
+    page = range(31,39)
     print('爬虫开始')
+    for p in page:
+        main(p)
+    # print("爬虫结束")
+    page = range(310,399)
+    # print('爬虫开始')
     for p in page:
         main(p)
     print("爬虫结束")
